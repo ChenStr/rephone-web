@@ -123,10 +123,11 @@
                 <el-radio label="M">目录</el-radio>
                 <el-radio label="C">菜单</el-radio>
                 <el-radio label="F">按钮</el-radio>
+                <el-radio label="L">列表权限</el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
-          <el-col :span="24" v-if="form.menuType != 'F'">
+          <el-col :span="24" v-if="authOr(form.menuType,['M','C'])">
             <el-form-item label="菜单图标" prop="icon">
               <el-popover
                 placement="bottom-start"
@@ -157,7 +158,7 @@
               <el-input-number v-model="form.orderNum" controls-position="right" :min="0" />
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="form.menuType != 'F'">
+          <el-col :span="12" v-if="authOr(form.menuType,['M','C'])">
             <el-form-item prop="isFrame">
               <span slot="label">
                 <el-tooltip content="选择是外链则路由地址需要以`http(s)://`开头" placement="top">
@@ -171,7 +172,7 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="form.menuType != 'F'">
+          <el-col :span="12" v-if="authOr(form.menuType,['M','C'])">
             <el-form-item prop="path">
               <span slot="label">
                 <el-tooltip content="访问的路由地址，如：`user`，如外网地址需内链访问则以`http(s)://`开头" placement="top">
@@ -182,7 +183,7 @@
               <el-input v-model="form.path" placeholder="请输入路由地址" />
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="form.menuType == 'C'">
+          <el-col :span="12" v-if="authOr(form.menuType,['C'])">
             <el-form-item prop="component">
               <span slot="label">
                 <el-tooltip content="访问的组件路径，如：`system/user/index`，默认在`views`目录下" placement="top">
@@ -193,7 +194,7 @@
               <el-input v-model="form.component" placeholder="请输入组件路径" />
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="form.menuType != 'M'">
+          <el-col :span="12" v-if="authOr(form.menuType,['C','F','L'])">
             <el-form-item prop="perms">
               <el-input v-model="form.perms" placeholder="请输入权限标识" maxlength="100" />
               <span slot="label">
@@ -204,7 +205,7 @@
               </span>
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="form.menuType == 'C'">
+          <el-col :span="12" v-if="authOr(form.menuType,['C'])">
             <el-form-item prop="query">
               <el-input v-model="form.query" placeholder="请输入路由参数" maxlength="255" />
               <span slot="label">
@@ -215,7 +216,7 @@
               </span>
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="form.menuType == 'C'">
+          <el-col :span="12" v-if="authOr(form.menuType,['C'])">
             <el-form-item prop="isCache">
               <span slot="label">
                 <el-tooltip content="选择是则会被`keep-alive`缓存，需要匹配组件的`name`和地址保持一致" placement="top">
@@ -229,7 +230,7 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="form.menuType != 'F'">
+          <el-col :span="12" v-if="authOr(form.menuType,['M','C'])">
             <el-form-item prop="visible">
               <span slot="label">
                 <el-tooltip content="选择隐藏则路由将不会出现在侧边栏，但仍然可以访问" placement="top">
@@ -263,6 +264,19 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
+          <el-col :span="24" v-if="authOr(form.menuType,['L'])">
+            <el-form-item prop="column">
+              <el-checkbox-group v-model="form.column">
+                <el-checkbox v-for="(value, key) in this.selectColum" :key="key" :label="key" > {{ value }}</el-checkbox>
+              </el-checkbox-group>
+              <span slot="label">
+                <el-tooltip content="选择主目录后显示" placement="top">
+                <i class="el-icon-question"></i>
+                </el-tooltip>
+                列表字段权限选择
+              </span>
+            </el-form-item>
+          </el-col>
         </el-row>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -274,7 +288,7 @@
 </template>
 
 <script>
-import { listMenu, getMenu, delMenu, addMenu, updateMenu } from "@/api/system/menu";
+import { listMenu, getMenu, delMenu, addMenu, updateMenu,getMenuColum } from "@/api/system/menu";
 import Treeselect from "@riophae/vue-treeselect";
 import "@riophae/vue-treeselect/dist/vue-treeselect.css";
 import IconSelect from "@/components/IconSelect";
@@ -291,6 +305,8 @@ export default {
       showSearch: true,
       // 菜单表格树数据
       menuList: [],
+      // 菜单表格列表数据
+      menus:[],
       // 菜单树选项
       menuOptions: [],
       // 弹出层标题
@@ -306,6 +322,11 @@ export default {
         menuName: undefined,
         visible: undefined
       },
+      // 所有的权限菜单
+      menuColum: {
+      },
+      // 给用户选择的
+      selectColum: {},
       // 表单参数
       form: {},
       // 表单校验
@@ -324,6 +345,15 @@ export default {
   },
   created() {
     this.getList();
+    this.getMenuColum();
+  },
+  watch: {
+    // 'form.perms': function (newval, oldVal) {
+    //   // 修改
+    //   if (newval) {
+    //     this.selectColum = this.menuColum[newval];
+    //   }
+    // }
   },
   methods: {
     // 选择图标
@@ -334,6 +364,14 @@ export default {
     getList() {
       this.loading = true;
       listMenu(this.queryParams).then(response => {
+        response.data.forEach((item, index) => {
+          if(item.column) {
+            item.column = item.column.split(",");
+          } else {
+            item.column = []
+          }
+        });
+        this.menus = response.data;
         this.menuList = this.handleTree(response.data, "menuId");
         this.loading = false;
       });
@@ -375,7 +413,8 @@ export default {
         isFrame: "1",
         isCache: "0",
         visible: "0",
-        status: "0"
+        status: "0",
+        column: []
       };
       this.resetForm("form");
     },
@@ -391,6 +430,7 @@ export default {
     /** 新增按钮操作 */
     handleAdd(row) {
       this.reset();
+      this.selectColum=this.menuColum[row.perms];
       this.getTreeselect();
       if (row != null && row.menuId) {
         this.form.parentId = row.menuId;
@@ -411,8 +451,15 @@ export default {
     /** 修改按钮操作 */
     handleUpdate(row) {
       this.reset();
+      this.selectColum=this.menuColum[row.perms];
+      console.log(222,this.form.column);
       this.getTreeselect();
       getMenu(row.menuId).then(response => {
+        if (response.data.column) {
+          response.data.column = response.data.column.split(",");
+        } else {
+          response.data.column = [];
+        }
         this.form = response.data;
         this.open = true;
         this.title = "修改菜单";
@@ -422,6 +469,11 @@ export default {
     submitForm: function() {
       this.$refs["form"].validate(valid => {
         if (valid) {
+          if (this.form.column.length > 0 ) {
+            this.form.column = this.form.column.toString();
+          } else {
+            this.form.column = '';
+          }
           if (this.form.menuId != undefined) {
             updateMenu(this.form).then(response => {
               this.$modal.msgSuccess("修改成功");
@@ -446,6 +498,19 @@ export default {
         this.getList();
         this.$modal.msgSuccess("删除成功");
       }).catch(() => {});
+    },
+    // 判断权限，输入列表，满足其中一个就可以通过
+    authOr(type,data) {
+      const flag = data.includes(type);
+      return flag;
+    },
+    /** 查询菜单的列表权限 */
+    getMenuColum() {
+      this.loading = true;
+      getMenuColum().then(response => {
+        this.menuColum = response.data;
+        this.loading = false;
+      });
     }
   }
 };

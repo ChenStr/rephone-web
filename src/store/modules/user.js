@@ -8,7 +8,11 @@ const user = {
     name: '',
     avatar: '',
     roles: [],
-    permissions: []
+    permissions: [],
+    // 用户当前所有涉及到的权限
+    columns: {
+      
+    }
   },
 
   mutations: {
@@ -29,6 +33,9 @@ const user = {
     },
     SET_PERMISSIONS: (state, permissions) => {
       state.permissions = permissions
+    },
+    SET_COLUMNS:(state,columns)=>{
+      state.columns = columns;
     }
   },
 
@@ -58,6 +65,7 @@ const user = {
           const avatar = (user.avatar == "" || user.avatar == null) ? require("@/assets/images/profile.jpg") : process.env.VUE_APP_BASE_API + user.avatar;
           if (res.roles && res.roles.length > 0) { // 验证返回的roles是否是一个非空数组
             commit('SET_ROLES', res.roles)
+            commit('SET_COLUMNS', res.columns)
             commit('SET_PERMISSIONS', res.permissions)
           } else {
             commit('SET_ROLES', ['ROLE_DEFAULT'])

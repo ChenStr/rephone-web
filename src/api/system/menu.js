@@ -58,3 +58,11 @@ export function delMenu(menuId) {
     method: 'delete'
   })
 }
+
+// 获取菜单的列表权限
+export function getMenuColum() {
+  return request({
+    url: '/system/menu/column',
+    method: 'get'
+  })
+}
