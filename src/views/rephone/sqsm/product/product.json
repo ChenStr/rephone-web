@@ -1,0 +1,38 @@
+{
+    "category": {
+		"name": "分类名称",
+		"status": "是否显示",
+        "sort": "排序",
+        "code": "分类编码",
+        "create_time": "创建时间",
+        "parents_id": "父级id"
+	},
+    "category_disAble": {
+        "id": "id",
+		"ancestors": "祖级列表",
+		"cost": "事业部费用",
+        "create_by": "创建者",
+		"update_by": "更新者",
+		"update_time": "更新时间",
+		"remark": "备注"
+    },
+    "brand": {
+		"code": "品牌编码",
+		"name": "品牌名称",
+		"logo": "品牌logo图片地址",
+		"web_url": "品牌网址",
+		"desc": "品牌描述",
+		"sort": "品牌排序",
+		"recommend": "是否推荐",
+		"status": "状态（0正常 1关闭）"
+	},
+    "brand_disable": {
+		"id": "id",
+		"type": "品牌类型",
+		"create_by": "创建者",
+		"create_time": "创建时间",
+		"update_by": "更新者",
+		"update_time": "更新时间",
+		"remark": "备注"
+    }
+}

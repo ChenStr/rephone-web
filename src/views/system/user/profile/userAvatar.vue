@@ -82,6 +82,8 @@ export default {
       resizeHandler: null
     };
   },
+  created() {
+  },
   methods: {
     // 编辑头像
     editCropper() {

@@ -6,6 +6,7 @@ const user = {
     token: getToken(),
     id: '',
     name: '',
+    deptId: null,
     avatar: '',
     roles: [],
     permissions: [],
@@ -24,6 +25,9 @@ const user = {
     },
     SET_NAME: (state, name) => {
       state.name = name
+    },
+    SET_DEPTID: (state,deptId)=> {
+      state.deptId = deptId
     },
     SET_AVATAR: (state, avatar) => {
       state.avatar = avatar
@@ -49,7 +53,7 @@ const user = {
       return new Promise((resolve, reject) => {
         login(username, password, code, uuid).then(res => {
           setToken(res.data.access_token)
-          commit('SET_TOKEN', res.token)
+          commit('SET_TOKEN', res.data.access_token)
           resolve()
         }).catch(error => {
           reject(error)
@@ -62,7 +66,7 @@ const user = {
       return new Promise((resolve, reject) => {
         getInfo().then(res => {
           const user = res.user
-          const avatar = (user.avatar == "" || user.avatar == null) ? require("@/assets/images/profile.jpg") : process.env.VUE_APP_BASE_API + user.avatar;
+          // const avatar = (user.avatar == "" || user.avatar == null) ? require("@/assets/images/profile.jpg") : process.env.VUE_APP_BASE_API + user.avatar;
           if (res.roles && res.roles.length > 0) { // 验证返回的roles是否是一个非空数组
             commit('SET_ROLES', res.roles)
             commit('SET_COLUMNS', res.columns)
@@ -72,7 +76,8 @@ const user = {
           }
           commit('SET_ID', user.userId)
           commit('SET_NAME', user.userName)
-          commit('SET_AVATAR', avatar)
+          commit('SET_DEPTID', user.deptId)
+          commit('SET_AVATAR', user.avatar)
           resolve(res)
         }).catch(error => {
           reject(error)

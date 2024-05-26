@@ -45,7 +45,27 @@
           @click="toggleExpandAll"
         >展开/折叠</el-button>
       </el-col>
-      <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
+      <el-col :span="1.5">
+        <el-button
+          type="info"
+          plain
+          icon="el-icon-upload2"
+          size="mini"
+          @click="handleImport"
+          v-hasPermi="['sqsm:product:category:import']"
+        >导入</el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          type="warning"
+          plain
+          icon="el-icon-download"
+          size="mini"
+          @click="handleExport"
+          v-hasPermi="['sqsm:product:category:export']"
+        >导出</el-button>
+      </el-col>
+      <right-toolbar :showSearch.sync="showSearch" @queryTable="getList" :columns="selectColumns" ></right-toolbar>
     </el-row>
 
     <el-table
@@ -77,7 +97,7 @@
             type="text"
             icon="el-icon-edit"
             @click="handleUpdate(scope.row)"
-            v-hasPermi="['sqsm:product:category:add']"
+            v-hasPermi="['sqsm:product:category:edit']"
           >修改</el-button>
           <el-button
             size="mini"
@@ -101,17 +121,17 @@
     <el-dialog :title="title" :visible.sync="open" width="680px" :before-close="closeDialog" append-to-body>
       <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-row>
-          <el-col :span="24" v-if="authOr('code',this.columns.add)">
+          <el-col :span="24" v-if="authOr('code',eidtOrSaveType())">
             <el-form-item label="分类编码" prop="code">
               <el-input v-model="form.code" placeholder="请输入商品分类编码" />
             </el-form-item>
           </el-col>
-          <el-col :span="24" v-if="authOr('name',this.columns.add)">
+          <el-col :span="24" v-if="authOr('name',eidtOrSaveType())">
             <el-form-item label="分类名称" prop="name">
               <el-input v-model="form.name" placeholder="请输入商品分类名称" />
             </el-form-item>
           </el-col>
-          <el-col :span="24" v-if="authOr('parents_id',this.columns.add)">
+          <el-col :span="24" v-if="authOr('parents_id',eidtOrSaveType())">
             <el-form-item label="上级分类" prop="parentsId">
               <treeselect
                 v-model="form.parentsId"
@@ -122,12 +142,12 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="authOr('sort',this.columns.add)">
+          <el-col :span="12" v-if="authOr('sort',eidtOrSaveType())">
             <el-form-item label="排序" prop="sort">
               <el-input-number v-model="form.sort" controls-position="right" :min="0" />
             </el-form-item>
           </el-col>
-          <el-col :span="12" v-if="this.title =='编辑商品分类' && authOr('sort',this.columns.add)">
+          <el-col :span="12" v-if="this.title =='编辑商品分类' && authOr('sort',eidtOrSaveType())">
             <el-form-item label="事业部费用" prop="cost">
               <el-input v-model="form.cost" controls-position="right" type="number" step="0.01" :min="0" />
               <el-tooltip content="收取事业部的费用配置，此分类下每 kg 的费用" placement="bottom">
@@ -135,7 +155,7 @@
               </el-tooltip>
             </el-form-item>
           </el-col>
-          <el-col :span="24" v-if="authOr('status',this.columns.add)">
+          <el-col :span="24" v-if="authOr('status',eidtOrSaveType())">
             <el-form-item prop="status">
               <span slot="label">
                 是否显示
@@ -163,6 +183,7 @@
 import { listProductCategory,getProductCategory,addProductCategory,updateProductCategory,
   delProductCategory } from "@/api/rephone/sqsm/product/category";
 import Treeselect from "@riophae/vue-treeselect";
+import { category } from "../product.json";
 import "@riophae/vue-treeselect/dist/vue-treeselect.css";
 
 export default {
@@ -189,8 +210,9 @@ export default {
       refreshTable: true,
       // 查询参数
       queryParams: {
+        row: undefined,
         name: undefined,
-        visible: undefined
+        status: undefined
       },
       // 表单参数
       form: {},
@@ -211,11 +233,15 @@ export default {
       },
       // 权限判断
       columns: {
-      }
+      },
+      // 用户选择展示的列
+      selectColumns: [
+
+      ]
     };
   },
   created() {
-    this.getColumn();
+    this.initMethod();
     this.getList();
   },
   methods: {
@@ -241,9 +267,12 @@ export default {
         children: node.children
       };
     },
-    /** 查询菜单下拉树结构 */
+    /** 查询品类下拉树结构 */
     getTreeselect() {
-      const query = {};
+      const query = {
+        status: '0',
+        row: null
+      };
       if (this.columns.list != null) {
         query.row = this.columns.list;
       }
@@ -311,7 +340,7 @@ export default {
       getProductCategory(row.id).then(response => {
         this.form = response.data;
         this.open = true;
-        this.title = "编辑商品分类";
+        this.title = "编辑分类";
       });
     },
     /** 提交按钮 */
@@ -346,25 +375,48 @@ export default {
         this.$modal.msgSuccess("删除成功");
       }).catch(() => {});
     },
-    /** 获取各个权限方法 */
-    getColumn() {
+    /* 初始化方法 */
+    initMethod() {
+      /** 获取各个权限方法 */
+      const deptId = this.$store.state.user.deptId;
+      const columns = this.$store.state.user.columns;
       this.columns = {
-        list: this.$store.state.user.columns['sqsm:product:category:list']?this.$store.state.user.columns['sqsm:product:category:list']:null,
-        query: this.$store.state.user.columns['sqsm:product:category:query']?this.$store.state.user.columns['sqsm:product:category:query']:null,
-        add: this.$store.state.user.columns['sqsm:product:category:add']?this.$store.state.user.columns['sqsm:product:category:add']:null,
-        edit: this.$store.state.user.columns['sqsm:product:category:edit']?this.$store.state.user.columns['sqsm:product:category:edit']:null,
-        remove: this.$store.state.user.columns['sqsm:product:category:remove']?this.$store.state.user.columns['sqsm:product:category:remove']:null
+        list: columns[deptId]['sqsm:product:category:list']?columns[deptId]['sqsm:product:category:list']:null,
+        query: columns[deptId]['sqsm:product:category:query']?columns[deptId]['sqsm:product:category:query']:null,
+        add: columns[deptId]['sqsm:product:category:add']?columns[deptId]['sqsm:product:category:add']:null,
+        edit: columns[deptId]['sqsm:product:category:edit']?columns[deptId]['sqsm:product:category:edit']:null,
+        remove: columns[deptId]['sqsm:product:category:remove']?columns[deptId]['sqsm:product:category:remove']:null
       }
+      this.queryParams.status = '0';
+      this.columns.list.split(',').forEach(element => {
+        if (category[element]) {
+          this.selectColumns.push({ key: element , label: category[element] , visible:true })
+        }
+      });
       // if (this.columns.remove == null) {
       //   console.log(111);
       // } else {
       //   console.log(222);
       // }
     },
-    /** 判断权限方法 */
+    // 判断当前的loading是新增还是更新
+    eidtOrSaveType() {
+      if (this.title == '添加分类') {
+        return this.columns.add;
+      } else {
+        return this.columns.edit;
+      }
+    },
+    /** 判断相应的列显不显示，1、判断权限方法 2、判断用户是否有取消显示指定的列 */
     authOr(row,rows) {
       const list = rows.split(',');
-      return list.includes(row);
+      // 在前端设置的展示字段中查找是否有对应的字段
+      const data = this.selectColumns.find(i=>{
+        return row == i.key;
+      });
+      // 这里可能会出现，列表里有但是json字段里还没设定的情况
+      const visible = data?data.visible:false;
+      return list.includes(row) && visible;
     },
     /** 增强用户体验做的 loding */
     closeDialog() {
@@ -377,7 +429,20 @@ export default {
           this.reset();
         }).catch(() => {
         });
-    }
+    },
+    /** 导入按钮操作 */
+    handleImport() {
+      // this.upload.title = "用户导入";
+      // this.upload.open = true;
+      console.log("你点了导入");
+    },
+    /** 导出按钮操作 */
+    handleExport() {
+      // this.download('system/user/export', {
+      //   ...this.queryParams
+      // }, `user_${new Date().getTime()}.xlsx`)
+      console.log("你点了导出");
+    },
   }
 };
 </script>
